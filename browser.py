@@ -34,8 +34,8 @@ class Browser:
 
     def load(self, url):
         body = url.request()
-        text = lex(body)
-        self.display_list = layout(text)
+        tokens = lex(body)
+        self.display_list = Layout(tokens).display_list
         self.draw()
 
     def scrolldown(self, e):
@@ -74,37 +74,43 @@ def lex(body):
         out.append(Text(buffer)) 
     return out
 
-def layout(tokens):
-    display_list = []
-    cursor_x, cursor_y = HSTEP, VSTEP
-    # font style variables
-    weight = "normal"
-    style = "roman"
-    for tok in tokens:
+class Layout:
+    def __init__(self, tokens):
+        self.display_list = []
+        self.cursor_x = HSTEP
+        self.cursor_y = VSTEP
+        self.weight = "normal"
+        self.style = "roman"
+        for tok in tokens:
+            self.token(tok)
+
+    def word(self, word):
+        font = tkinter.font.Font(
+            size=16,
+            weight=self.weight,
+            slant=self.style,
+        )
+        w = font.measure(word)
+        self.display_list.append((self.cursor_x, self.cursor_y, word, font))
+        # move x cursor to the end of the word with one space
+        self.cursor_x += w + font.measure(" ")
+        if self.cursor_x + w >= WIDTH - HSTEP:
+            # adding extra .25 line space, otherwise it is hard to read
+            self.cursor_y += font.metrics("linespace") * 1.25
+            self.cursor_x = HSTEP
+
+    def token(self, tok):
         if isinstance(tok, Text):
             for word in tok.text.split():
-                font = tkinter.font.Font(
-                    size=16,
-                    weight=weight,
-                    slant=style,
-                )
-                w = font.measure(word)
-                display_list.append((cursor_x, cursor_y, word, font))
-                # move x cursor to the end of the word with one space
-                cursor_x += w + font.measure(" ")
-                if cursor_x + w >= WIDTH - HSTEP:
-                    # adding extra .25 line space, otherwise it is hard to read
-                    cursor_y += font.metrics("linespace") * 1.25
-                    cursor_x = HSTEP
+                self.word(word)
         elif tok.tag == "i":
-            style = "italic"
+            self.style = "italic"
         elif tok.tag == "/i":
-            style = "roman"
+            self.style = "roman"
         elif tok.tag == "b":
-            weight = "bold"
+            self.weight = "bold"
         elif tok.tag == "/b":
-            weight = "normal"
-    return display_list
+            self.weight = "normal"
 
 if __name__ == "__main__":
     import sys
