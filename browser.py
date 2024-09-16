@@ -23,6 +23,7 @@ class Browser:
         self.canvas.pack()
         self.scroll = 0
         self.window.bind("<Down>", self.scrolldown)
+        self.display_list = []
 
     def draw(self):
         self.canvas.delete("all")
@@ -81,21 +82,41 @@ class Layout:
         self.cursor_y = VSTEP
         self.weight = "normal"
         self.style = "roman"
+        self.size = 12
+        # words in each line
+        self.line = []
         for tok in tokens:
             self.token(tok)
+        self.flush()
+
+    def flush(self):
+        if not self.line: return
+        metrics = [font.metrics() for x, word, font in self.line]
+        max_ascent = max([metric["ascent"] for metric in metrics])
+        baseline = self.cursor_y + 1.25 * max_ascent
+        for x, word, font in self.line:
+            y = baseline - font.metrics("ascent")
+            self.display_list.append((x, y, word, font))
+        max_descent = max([metric["descent"] for metric in metrics])
+        self.cursor_y = baseline + 1.25 * max_descent
+        self.cursor_x = HSTEP
+        self.line = []
 
     def word(self, word):
         font = tkinter.font.Font(
-            size=16,
+            size=self.size,
             weight=self.weight,
             slant=self.style,
         )
         w = font.measure(word)
-        self.display_list.append((self.cursor_x, self.cursor_y, word, font))
+        # line only keep x position
+        self.line.append((self.cursor_x, word, font));
+        # self.display_list.append((self.cursor_x, self.cursor_y, word, font))
         # move x cursor to the end of the word with one space
         self.cursor_x += w + font.measure(" ")
-        if self.cursor_x + w >= WIDTH - HSTEP:
-            # adding extra .25 line space, otherwise it is hard to read
+        # adding extra .25 line space, otherwise it is hard to read
+        if self.cursor_x + w > WIDTH - HSTEP:
+            self.flush()
             self.cursor_y += font.metrics("linespace") * 1.25
             self.cursor_x = HSTEP
 
@@ -111,6 +132,20 @@ class Layout:
             self.weight = "bold"
         elif tok.tag == "/b":
             self.weight = "normal"
+        elif tok.tag == "small":
+            self.size -= 2
+        elif tok.tag == "/small":
+            self.size += 2
+        elif tok.tag == "big":
+            self.size += 4
+        elif tok.tag == "/big":
+            self.size -= 4
+        elif tok.tag == "br":
+            # line break then call line flush
+            self.flush()
+        elif tok.tag == "/p":
+            self.flush()
+            self.cursor_y += VSTEP
 
 if __name__ == "__main__":
     import sys
