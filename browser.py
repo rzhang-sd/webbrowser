@@ -6,6 +6,7 @@ WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
 
+# global font cache
 FONTS = {}
 
 class Browser:
@@ -77,6 +78,7 @@ def lex(body):
         out.append(Text(buffer)) 
     return out
 
+# cache duplicate fonts for better performance
 def get_font(size, weight, style):
     key = (size, weight, style)
     if key not in FONTS:
